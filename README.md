@@ -112,6 +112,17 @@ growing the language upward until it speaks your problem domain directly. The
 whole system — compiler, interpreter, and live REPL — is tiny, which made Forth a
 natural fit for the small, resource-constrained computers of its era.
 
+![A gforth REPL session: pushing numbers and adding them on the stack, defining the new word "square" as dup *, using it, then defining and using a word that prints text](docs/assets/forth-repl.gif)
+
+Reading that session left to right: `3 4 + .` pushes `3` and `4` onto the
+stack, `+` pops both and pushes their sum, and `.` pops and prints it — `7`.
+`: square dup * ;` **defines a new word** — `dup` duplicates the top of the
+stack and `*` multiplies, so `square` squares whatever it's given; `5 square .`
+then uses it like any built-in word. `greet` is defined and used the same way,
+just with `."` printing text instead of doing arithmetic. This is the whole
+trick: Forth has almost no built-in syntax, only words that operate on a
+stack — so "defining a word" and "extending the language" are the same act.
+
 **Forth and AI (late 1970s–1980s, the expert-systems era).** During the expert-systems boom of the 1980s, its interactivity and radical extensibility made it an appealing niche vehicle for AI experimentation and robotics. Because a Forth programmer effectively *grows a domain-specific language* (the same trait that drew people to Lisp, but in a tiny footprint suited to embedded control), hobbyists and researchers built small expert-system shells, rule engines, and real-time control for autonomous robots in Forth. After the late-1980s "AI winter" that interest faded along with the wider field. This little game is a miniature example of that tradition: a program that starts almost knowing nothing and extends its own decision tree from experience.
 
 **Forth in the space industry.** Forth's tiny footprint, deterministic real-time behaviour, and live, on-target interactivity (you can poke at a running system over a slow telemetry link) made it a favourite for spacecraft and embedded avionics. Moore pioneered **stack processors that execute Forth in hardware** (his Novix NC4016); that lineage led to chips such as the Harris/Intersil **RTX2010**, which flew on numerous missions — including the **Philae** lander of ESA's Rosetta comet mission, where two RTX2010s ran the command-and-data management system.[^rtx-philae] From the 1980s and 1990s onward, Forth has been used in instruments and controllers across NASA and ESA programs (Galileo, Cassini, NEAR, and others), where small, reliable, and inspectable code matters most.[^forth-space]
