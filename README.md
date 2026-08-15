@@ -10,6 +10,11 @@ questions. When it guesses wrong, you teach it a new animal and a question that
 tells the two apart — so the program gets smarter every time you play. The
 learned decision tree is saved to disk and reloaded on the next run.
 
+![Animal Game: the computer guesses wrong, learns "Cat" from a new yes/no question, and saves it for next time](docs/assets/gameplay.gif)
+
+<details>
+<summary>Text transcript of the session above</summary>
+
 ```
 Is it a Dog? (yes/no): n
 I give up!  What animal were you thinking of?
@@ -19,6 +24,8 @@ Question: Does it meow?
 For the new animal, is the answer to your question YES? (yes/no): y
 Would you like to play again? (yes/no): n
 ```
+
+</details>
 
 ## Contents
 
@@ -44,6 +51,8 @@ sudo apt install gforth
 
 Run all commands **from the project root** — `REQUIRE` resolves paths relative
 to the gforth process's working directory.
+
+![Installing gforth and launching the game with make run](docs/assets/setup.png)
 
 ```bash
 make run     # play the game
