@@ -27,6 +27,10 @@ Would you like to play again? (yes/no): n
 
 </details>
 
+This is a companion port of the
+[Prolog implementation](https://github.com/raulkivi/ProAnimalGame) of the same
+game — same design, re-expressed to play to Forth's strengths.
+
 ## Contents
 
 - [Requirements](#requirements)
