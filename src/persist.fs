@@ -15,6 +15,10 @@
 \
 \ The tree is reconstructed by reading nodes in pre-order: a QuestionNode
 \ consumes the next two sub-trees as its yes and no children.
+\
+\ If the file exists but cannot be parsed, it is renamed to "<path>.bak"
+\ (with a warning on stderr) before falling back to the seed tree, so the
+\ next save-tree cannot silently destroy everything learned.
 
 REQUIRE node.fs
 
@@ -24,7 +28,14 @@ DECIMAL   \ numeric literals below are decimal regardless of the caller's BASE
 \ Constants
 \ ---------------------------------------------------------------------------
 
+\ Path buffers hold counted strings ("<path>.tmp" / "<path>.bak").
 256 CONSTANT PERSIST-BUFSIZE
+
+\ Longest text load-tree accepts on a line.  Deliberately larger than
+\ MAX-TEXT-LEN so files written by older versions (input up to 256 chars)
+\ still load; node constructors clamp the text to MAX-TEXT-LEN.
+512 CONSTANT LOAD-MAXTEXT
+LOAD-MAXTEXT 2 + CONSTANT LOAD-MAXLINE   \ "<type> " prefix + text
 
 \ THROW code raised when a save file is malformed (unknown line prefix or a
 \ question node missing a child).  load-tree CATCHes it and falls back to the
@@ -37,7 +48,16 @@ DECIMAL   \ numeric literals below are decimal regardless of the caller's BASE
 \ Writes the tree to a temp file then renames for atomicity.
 
 CREATE persist-tmp-buf PERSIST-BUFSIZE ALLOT
-CREATE persist-line-buf PERSIST-BUFSIZE ALLOT
+CREATE persist-bak-buf PERSIST-BUFSIZE ALLOT
+CREATE persist-prefix-buf 2 ALLOT          \ "<type> "
+
+\ path+suffix  ( c-addr u s-addr s-u buf -- )
+\ Store "<path><suffix>" in buf as a counted string; aborts if it can't fit.
+: path+suffix ( c-addr u s-addr s-u buf -- )
+  >R
+  2 PICK OVER + PERSIST-BUFSIZE 1- > ABORT" persist: path too long"
+  2SWAP R@ PLACE  R> +PLACE
+;
 
 VARIABLE save-fileid
 
@@ -47,13 +67,12 @@ VARIABLE save-fileid
 ;
 
 \ write-str-line  ( prefix-char text-addr text-len -- )
-\ Writes "<prefix-char> <text>\n" to the file in save-fileid.
+\ Writes "<prefix-char> <text>\n" to the file in save-fileid.  The text is
+\ written straight from the node (no intermediate line buffer to overflow).
 : write-str-line ( prefix-char text-addr text-len -- )
-  DUP >R                           \ save text-len                 R: text-len
-  persist-line-buf 2 + SWAP MOVE   \ copy text into buf[2..]       ( prefix-char )
-  persist-line-buf C!              \ buf[0] = prefix char          ( )
-  BL persist-line-buf 1+ C!        \ buf[1] = space
-  persist-line-buf  R> 2 +         \ ( c-addr text-len+2 )
+  ROT persist-prefix-buf C!        \ buf[0] = prefix char   ( text-addr text-len )
+  BL persist-prefix-buf 1+ C!      \ buf[1] = space
+  persist-prefix-buf 2 save-fileid @ WRITE-FILE THROW
   save-fileid @ WRITE-LINE THROW
 ;
 
@@ -73,8 +92,7 @@ VARIABLE save-fileid
 \ Writes the tree to "<path>.tmp" then renames it onto <path> for atomicity.
 : file-save-tree ( root c-addr u -- )
   \ Build temp filename "<path>.tmp" in persist-tmp-buf (counted string)
-  2DUP persist-tmp-buf PLACE       \ persist-tmp-buf := path        ( root c-addr u )
-  s" .tmp" persist-tmp-buf +PLACE  \ append ".tmp"                  ( root c-addr u )
+  2DUP s" .tmp" persist-tmp-buf path+suffix   \ "<path>.tmp"     ( root c-addr u )
 
   \ Open temp file for writing
   persist-tmp-buf COUNT W/O CREATE-FILE THROW   \ ( root c-addr u fileid )
@@ -95,7 +113,9 @@ VARIABLE save-fileid
 \ ---------------------------------------------------------------------------
 
 VARIABLE load-fileid
-CREATE  load-line-buf PERSIST-BUFSIZE ALLOT
+\ READ-LINE needs a buffer of (requested length + 2) for the line terminator.
+\ We request LOAD-MAXLINE+1 chars so an over-long line is detectable.
+CREATE  load-line-buf LOAD-MAXLINE 3 + ALLOT
 VARIABLE load-more     \ non-zero while file has lines
 
 \ heap-copy  ( c-addr u -- c-addr2 u )
@@ -108,10 +128,12 @@ VARIABLE load-more     \ non-zero while file has lines
 : read-next-node ( -- node )
   load-more @ 0= IF 0 EXIT THEN
 
-  load-line-buf PERSIST-BUFSIZE load-fileid @ READ-LINE THROW
+  load-line-buf LOAD-MAXLINE 1+ load-fileid @ READ-LINE THROW
   \ READ-LINE: ( c-addr u1 fid -- u2 flag wior ); after THROW: ( u2 flag )
   load-more !                 \ store eof flag, leave byte count   ( u2 )
   DUP 0= IF DROP 0 EXIT THEN   \ empty line → return null
+  DUP LOAD-MAXLINE > IF DROP CORRUPT-TREE THROW THEN  \ line too long
+  DUP 2 < IF DROP CORRUPT-TREE THROW THEN   \ no "<type> " prefix
 
   \ u bytes read; load-line-buf holds "<type> <text>" (no newline).
   \ text occupies buf[2..u);  text-len = u - 2.
@@ -152,19 +174,46 @@ VARIABLE load-more     \ non-zero while file has lines
   DUP 0= IF DROP default-tree THEN
 ;
 
+\ warn  ( c-addr u -- )   write a string to stderr
+: warn ( c-addr u -- )
+  stderr WRITE-FILE DROP
+;
+
+\ backup-corrupt  ( c-addr u -- )
+\ Rename the unreadable file <path> to <path>.bak (replacing any older
+\ backup) so the next save-tree can't overwrite the learned data; warn.
+: backup-corrupt ( c-addr u -- )
+  2DUP s" .bak" persist-bak-buf path+suffix
+  s" Warning: saved tree " warn  2DUP warn
+  persist-bak-buf COUNT RENAME-FILE   \ ( ior )
+  IF
+    s"  is unreadable and could not be backed up." warn
+  ELSE
+    s"  is unreadable; moved it to " warn  persist-bak-buf COUNT warn
+    s" ." warn
+  THEN
+  s"  Starting from the default tree." warn
+  s" " stderr WRITE-LINE DROP
+;
+
 \ file-load-tree  ( c-addr u -- root )
 \ Loads the tree from <path>; falls back to the default seed tree when the file
-\ is missing, empty, or corrupt (the parse is wrapped in CATCH).
+\ is missing, empty, or corrupt (the parse is wrapped in CATCH).  A corrupt
+\ file is first moved aside to <path>.bak (see backup-corrupt).
 : file-load-tree ( c-addr u -- root )
-  R/O OPEN-FILE
-  IF   \ open failed — return default seed tree
-    DROP default-tree EXIT
+  2DUP R/O OPEN-FILE                \ ( c-addr u fid ior )
+  IF   \ open failed (missing) — return default seed tree, nothing to back up
+    DROP 2DROP default-tree EXIT
   THEN
-  load-fileid !
+  load-fileid !                     \ ( c-addr u )
   -1 load-more !                    \ assume more lines
-  ['] load-from-file CATCH          \ ( root 0 | ior )
+  ['] load-from-file CATCH          \ ( c-addr u root 0 | c-addr u ior )
   load-fileid @ CLOSE-FILE DROP     \ close regardless; ignore close status
-  IF default-tree THEN              \ corruption caught → fall back to default
+  IF                                \ corruption caught
+    backup-corrupt default-tree     \ keep the bad file as <path>.bak
+  ELSE
+    NIP NIP                         \ ( root )
+  THEN
 ;
 
 \ ---------------------------------------------------------------------------

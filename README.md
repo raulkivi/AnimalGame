@@ -93,10 +93,15 @@ the persistence format — live in [`docs/AnimalGame.md`](docs/AnimalGame.md).
 
 Unit tests use a lightweight `{ ... }` assertion harness and override the `ui.fs`
 `DEFER` words with scripted answers, so the game logic is exercised without any
-real terminal input. All four suites pass:
+real terminal input. Each suite runs in its own gforth process; `make test`
+fails (non-zero exit) if any assertion reports `INCORRECT RESULT` /
+`WRONG NUMBER OF RESULTS` or gforth hits an error, and a `test-harness`
+self-check confirms the runner really does flag the deliberately failing
+suites in `tests/fixtures/`. All four suites pass:
 
 ```bash
 $ make test
+test-harness: runner detects failing suites
 test-node.fs: all tests passed
 test-ui.fs: all tests passed
 test-tree.fs: all tests passed

@@ -7,9 +7,13 @@
 \   NODE-YES   — yes-child pointer (0 for leaf)
 \   NODE-NO    — no-child pointer  (0 for leaf)
 \
+\ Text longer than MAX-TEXT-LEN (limits.fs) is clamped to MAX-TEXT-LEN.
+\
 \ String ownership: the string is copied onto the heap by new-animal and
 \ new-question.  free-node must be called to release both the string and
 \ the node block.
+
+REQUIRE limits.fs
 
 DECIMAL   \ numeric literals below are decimal regardless of the caller's BASE
 
@@ -35,11 +39,17 @@ END-STRUCTURE
   R>                         \ ( dest )
 ;
 
+\ clamp-text  ( c-addr u -- c-addr u' )   cap a length at MAX-TEXT-LEN
+: clamp-text ( c-addr u -- c-addr u' )
+  MAX-TEXT-LEN MIN
+;
+
 \ --- public API -------------------------------------------------------------
 
 \ new-animal  ( c-addr u -- node )
 \ Allocates a leaf node holding the given animal name.
 : new-animal ( c-addr u -- node )
+  clamp-text
   NODE-SIZE ALLOCATE THROW   \ ( c-addr u node )
   >R                         \ save node addr            R: node
   NODE-ANIMAL R@ NODE-TYPE ! \ ( c-addr u )
@@ -53,6 +63,7 @@ END-STRUCTURE
 \ new-question  ( c-addr u yes no -- node )
 \ Allocates an internal question node with yes/no child pointers.
 : new-question ( c-addr u yes no -- node )
+  2SWAP clamp-text 2SWAP
   NODE-SIZE ALLOCATE THROW   \ ( c-addr u yes no node )
   >R                         \ save node addr            R: node
   NODE-QUESTION R@ NODE-TYPE !

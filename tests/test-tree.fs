@@ -3,7 +3,7 @@
 \ Replaces DEFER words with scripted answers to test traversal and learning
 \ without any real I/O.
 
-REQUIRE test/tester.fs
+REQUIRE harness.fs
 REQUIRE ../src/tree.fs
 
 DECIMAL
@@ -130,4 +130,16 @@ T{ leaf-cell @ NODE-YES @ NODE-TEXT @ leaf-cell @ NODE-YES @ NODE-TLEN @
 \ Check no-child is Dog (original leaf)
 T{ leaf-cell @ NODE-NO @ -> tr-dog-leaf }T
 
-CR .( test-tree.fs: all tests passed ) CR
+\ ---------------------------------------------------------------------------
+\ Test 4: "Is it a <name>?" is built correctly for a max-length name
+\ ---------------------------------------------------------------------------
+
+CREATE tr-long 600 ALLOT   tr-long 600 CHAR x FILL
+tr-long MAX-TEXT-LEN new-animal CONSTANT tr-long-leaf
+
+T{ tr-long-leaf build-guess-q NIP -> MAX-TEXT-LEN 9 + }T   \ "Is it a " + name + "?"
+T{ tr-long-leaf build-guess-q DROP 8 s" Is it a " COMPARE -> 0 }T
+T{ tr-long-leaf build-guess-q + 1- C@ -> CHAR ? }T
+T{ tr-long-leaf build-guess-q 1- SWAP 8 + SWAP 8 - tr-long MAX-TEXT-LEN COMPARE -> 0 }T
+
+s" test-tree.fs" tests-done

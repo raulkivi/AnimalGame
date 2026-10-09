@@ -179,9 +179,15 @@ The format is trivial to inspect, diff, and hand-edit.
 
 **Operations required:**
 - `load(path) → Node` — deserialize the tree from file; create the default seed
-  tree if the file is absent or empty.
+  tree if the file is absent or empty. If the file exists but is corrupt, it is
+  first renamed to `<path>.bak` (with a warning on stderr) so the next save
+  cannot silently overwrite what was learned.
 - `save(root, path)` — serialize and write atomically (write to `<path>.tmp`,
   then rename onto `<path>`).
+
+Animal names and questions are limited to `MAX-TEXT-LEN` (200) characters
+(`src/limits.fs`): longer input is rejected with a message and re-prompted, and
+the node constructors clamp as a backstop, so every line fits the load buffer.
 
 The words that implement this live in [`persist.fs`](#forth-implementation).
 
@@ -192,15 +198,19 @@ The words that implement this live in [`persist.fs`](#forth-implementation).
 ```
 AnimalGame/
 ├── src/
+│   ├── limits.fs      # shared limits (MAX-TEXT-LEN)
 │   ├── node.fs        # node structure: allocate, inspect, free
 │   ├── ui.fs          # abstract I/O layer (DEFER words + defaults)
 │   ├── tree.fs        # traversal and learning
 │   ├── persist.fs     # save / load the decision tree
 │   └── main.fs        # entry point and game loop
 ├── tests/
+│   ├── harness.fs     # tester.fs + failure counting (`tests-done`)
 │   ├── test-node.fs
+│   ├── test-ui.fs
 │   ├── test-tree.fs
-│   └── test-persist.fs
+│   ├── test-persist.fs
+│   └── fixtures/      # deliberately failing suites for `make test-harness`
 ├── data/              # persisted knowledge base (tree.dat, created at runtime)
 ├── docs/
 │   └── AnimalGame.md
