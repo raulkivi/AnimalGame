@@ -4,8 +4,12 @@
 \ engine (tree.fs, main.fs) has zero dependency on concrete I/O.  Tests
 \ redefine these words with scripted answers without touching game logic.
 
+REQUIRE limits.fs
+
 DECIMAL   \ numeric literals below are decimal regardless of the caller's BASE
 
+\ Larger than MAX-TEXT-LEN so over-long input is detected (and rejected)
+\ rather than silently truncated.
 256 CONSTANT UI-BUFSIZE
 
 \ Internal line buffer used by the default PROMPT-LINE implementation.
@@ -31,6 +35,12 @@ DEFER PROMPT-LINE
 \ DISPLAY  ( c-addr u -- )
 \ Print a string followed by a newline.
 DEFER DISPLAY
+
+\ ui-accept  ( c-addr u1 -- u2 )
+\ Raw line reader used by the default implementations (ACCEPT by default);
+\ tests stub it to feed input to default-prompt-line.
+DEFER ui-accept
+' ACCEPT IS ui-accept
 
 \ --- default implementations ------------------------------------------------
 
@@ -62,7 +72,7 @@ DEFER DISPLAY
 : default-ask-yesno ( c-addr u -- flag )
   BEGIN
     2DUP TYPE ."  (yes/no): "
-    ui-yn-buf UI-BUFSIZE ACCEPT
+    ui-yn-buf UI-BUFSIZE ui-accept
     CR                           \ terminate the input line (ACCEPT eats the Enter)
     ui-yn-buf SWAP classify-yn   \ ( c-addr u yes-flag valid-flag )
     DUP 0=                       \ ( c-addr u yes-flag valid-flag invalid? )
@@ -72,12 +82,25 @@ DEFER DISPLAY
   DROP NIP NIP                   \ keep yes-flag, drop valid-flag + prompt
 ;
 
+\ text-len-ok?  ( u -- flag )   TRUE if u is an acceptable text length
+: text-len-ok? ( u -- flag )
+  MAX-TEXT-LEN <=
+;
+
 \ default-prompt-line  ( c-addr u -- c-addr2 u2 )
+\ Re-prompts (with a message) while the input is longer than MAX-TEXT-LEN.
 : default-prompt-line ( c-addr u -- c-addr2 u2 )
-  TYPE ."  "
-  ui-buf UI-BUFSIZE ACCEPT
-  CR                           \ terminate the input line (ACCEPT eats the Enter)
-  ui-buf SWAP
+  BEGIN
+    2DUP TYPE ."  "
+    ui-buf UI-BUFSIZE ui-accept  \ ( c-addr u n )
+    CR                           \ terminate the input line (ACCEPT eats the Enter)
+    DUP text-len-ok? 0=
+  WHILE
+    DROP
+    ." That is too long - please use at most " MAX-TEXT-LEN 0 .R
+    ."  characters." CR
+  REPEAT
+  NIP NIP ui-buf SWAP
 ;
 
 \ default-display  ( c-addr u -- )

@@ -42,4 +42,15 @@ T{ t-q1 NODE-TEXT @ t-q1 NODE-TLEN @ s" Is it a mammal?" COMPARE -> 0 }T
 s" Temp" new-animal free-node
 \ (no assertion — just must not throw)
 
+\ ---------------------------------------------------------------------------
+\ Text length is capped at MAX-TEXT-LEN by the constructors (single choke
+\ point), so no node can outgrow the persistence / guess buffers.
+\ ---------------------------------------------------------------------------
+
+CREATE t-long 600 ALLOT   t-long 600 CHAR x FILL
+
+T{ t-long MAX-TEXT-LEN new-animal NODE-TLEN @ -> MAX-TEXT-LEN }T
+T{ t-long 254 new-animal NODE-TLEN @          -> MAX-TEXT-LEN }T   \ clamped
+T{ t-long 254 t-dog t-wolf new-question NODE-TLEN @ -> MAX-TEXT-LEN }T
+
 s" test-node.fs" tests-done

@@ -23,16 +23,19 @@ DECIMAL   \ numeric literals below are decimal regardless of the caller's BASE
 \ String helper — build "Is it a <name>?" in a scratch buffer
 \ ---------------------------------------------------------------------------
 
-CREATE guess-buf 320 ALLOT
+\ Built with explicit lengths (not a counted string, whose length caps at 255);
+\ sized for the longest possible name (node text is clamped to MAX-TEXT-LEN).
+8 CONSTANT GUESS-PREFIX-LEN             \ length of "Is it a "
+CREATE guess-buf GUESS-PREFIX-LEN MAX-TEXT-LEN + 1+ ALLOT
 
 \ build-guess-q  ( node -- c-addr u )
 : build-guess-q ( node -- c-addr u )
-  0 guess-buf C!             \ init empty counted string
-  s" Is it a " guess-buf +PLACE
-  DUP NODE-TEXT @ OVER NODE-TLEN @ guess-buf +PLACE
-  s" ?" guess-buf +PLACE
-  DROP                       \ done with node
-  guess-buf COUNT
+  s" Is it a " guess-buf SWAP MOVE              \ ( node )
+  DUP NODE-TEXT @ SWAP NODE-TLEN @              \ ( name-addr name-len )
+  MAX-TEXT-LEN MIN >R                           \ R: name-len
+  guess-buf GUESS-PREFIX-LEN + R@ MOVE          \ append the name
+  [CHAR] ? guess-buf GUESS-PREFIX-LEN + R@ + C! \ append "?"
+  guess-buf R> GUESS-PREFIX-LEN + 1+            \ ( c-addr u )
 ;
 
 \ ---------------------------------------------------------------------------
