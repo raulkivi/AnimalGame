@@ -3,7 +3,7 @@
 \ Replaces DEFER words with scripted answers to test traversal and learning
 \ without any real I/O.
 
-REQUIRE test/tester.fs
+REQUIRE harness.fs
 REQUIRE ../src/tree.fs
 
 DECIMAL
@@ -130,4 +130,4 @@ T{ leaf-cell @ NODE-YES @ NODE-TEXT @ leaf-cell @ NODE-YES @ NODE-TLEN @
 \ Check no-child is Dog (original leaf)
 T{ leaf-cell @ NODE-NO @ -> tr-dog-leaf }T
 
-CR .( test-tree.fs: all tests passed ) CR
+s" test-tree.fs" tests-done

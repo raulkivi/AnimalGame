@@ -3,7 +3,7 @@
 \ classify-yn decides whether a typed answer is yes, no, or invalid; the
 \ default ASK-YESNO uses it to re-prompt until the input is valid.
 
-REQUIRE test/tester.fs
+REQUIRE harness.fs
 REQUIRE ../src/ui.fs
 
 DECIMAL
@@ -21,4 +21,4 @@ T{ s" maybe" classify-yn -> FALSE FALSE }T   \ not y/n → invalid
 T{ s" "      classify-yn -> FALSE FALSE }T   \ empty → invalid
 T{ s"    "   classify-yn -> FALSE FALSE }T   \ all blanks → invalid
 
-CR .( test-ui.fs: all tests passed ) CR
+s" test-ui.fs" tests-done

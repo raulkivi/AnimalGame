@@ -198,9 +198,12 @@ AnimalGame/
 │   ├── persist.fs     # save / load the decision tree
 │   └── main.fs        # entry point and game loop
 ├── tests/
+│   ├── harness.fs     # tester.fs + failure counting (`tests-done`)
 │   ├── test-node.fs
+│   ├── test-ui.fs
 │   ├── test-tree.fs
-│   └── test-persist.fs
+│   ├── test-persist.fs
+│   └── fixtures/      # deliberately failing suites for `make test-harness`
 ├── data/              # persisted knowledge base (tree.dat, created at runtime)
 ├── docs/
 │   └── AnimalGame.md

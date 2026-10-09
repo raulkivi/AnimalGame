@@ -1,8 +1,8 @@
 \ test-node.fs — Unit tests for src/node.fs
 \
-\ Uses gforth's built-in tester.fs: T{ <words> -> <expected> }T
+\ Uses tests/harness.fs (gforth's tester.fs + failure counting): T{ <words> -> <expected> }T
 
-REQUIRE test/tester.fs
+REQUIRE harness.fs
 REQUIRE ../src/node.fs
 
 DECIMAL
@@ -42,4 +42,4 @@ T{ t-q1 NODE-TEXT @ t-q1 NODE-TLEN @ s" Is it a mammal?" COMPARE -> 0 }T
 s" Temp" new-animal free-node
 \ (no assertion — just must not throw)
 
-CR .( test-node.fs: all tests passed ) CR
+s" test-node.fs" tests-done

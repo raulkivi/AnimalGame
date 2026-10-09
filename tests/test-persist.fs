@@ -1,6 +1,6 @@
 \ test-persist.fs — Unit tests for src/persist.fs
 
-REQUIRE test/tester.fs
+REQUIRE harness.fs
 REQUIRE ../src/persist.fs
 
 DECIMAL
@@ -106,4 +106,4 @@ T{ s" ignored-path" load-tree -> stub-node }T   \ injected repo is used
 
 ' file-load-tree IS load-tree   \ restore the real implementation
 
-CR .( test-persist.fs: all tests passed ) CR
+s" test-persist.fs" tests-done
